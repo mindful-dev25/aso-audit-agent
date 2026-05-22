@@ -14,7 +14,7 @@ export const scrapeAppListing = createTool({
     hasFirecrawl: z.boolean(),
     note: z.string().optional(),
   }),
-  execute: async ({ context: inputData }) => {
+  execute: async (inputData) => {
     const { url } = inputData
 
     if (!process.env.FIRECRAWL_API_KEY) {
@@ -32,8 +32,8 @@ export const scrapeAppListing = createTool({
 
     let markdown = ''
     try {
-      const result = await firecrawl.scrapeUrl(url, { formats: ['markdown'] })
-      if (result.success && result.markdown) {
+      const result = await firecrawl.scrape(url, { formats: ['markdown'] })
+      if (result.markdown) {
         markdown = result.markdown
       }
     } catch {

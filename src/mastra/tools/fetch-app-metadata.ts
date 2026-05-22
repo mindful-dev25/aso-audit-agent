@@ -38,7 +38,7 @@ export const fetchAppMetadata = createTool({
     metadata: AppMetadataSchema.nullable(),
     error: z.string().optional(),
   }),
-  execute: async ({ context: inputData }) => {
+  execute: async (inputData) => {
     const { url } = inputData
 
     const parts = parseAppStoreUrl(url)

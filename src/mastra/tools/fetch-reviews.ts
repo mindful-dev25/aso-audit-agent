@@ -31,7 +31,7 @@ export const fetchAppReviews = createTool({
     negativeThemes: z.array(z.string()),
     developerResponseRate: z.string(),
   }),
-  execute: async ({ context: inputData }) => {
+  execute: async (inputData) => {
     const { appId, country } = inputData
 
     let data: unknown

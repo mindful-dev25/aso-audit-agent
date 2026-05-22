@@ -31,7 +31,7 @@ export const findCompetitors = createTool({
     competitors: z.array(CompetitorSchema),
     searchTerm: z.string(),
   }),
-  execute: async ({ context: inputData }) => {
+  execute: async (inputData) => {
     const { category, country, excludeAppId } = inputData
 
     // Search by category name — returns top results by popularity
