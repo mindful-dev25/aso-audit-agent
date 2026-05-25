@@ -76,7 +76,7 @@ export const findCompetitors = createTool({
   },
 })
 
-async function fetchCompetitorDetail(appId: string, country: string): Promise<Competitor | null> {
+export async function fetchCompetitorDetail(appId: string, country: string): Promise<Competitor | null> {
   try {
     const res = await fetch(itunesLookupUrl(appId, country))
     if (!res.ok) return null

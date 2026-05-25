@@ -2,15 +2,14 @@
 
 import { useChat } from '@ai-sdk/react'
 import { TextStreamChatTransport } from 'ai'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Message } from './message'
 
-const transport = new TextStreamChatTransport({ api: '/api/chat' })
-
 export function Chat() {
+  const transport = useMemo(() => new TextStreamChatTransport({ api: '/api/chat' }), [])
   const { messages, sendMessage, status } = useChat({ transport })
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)

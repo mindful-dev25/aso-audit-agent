@@ -1,6 +1,7 @@
 import { createTool } from '@mastra/core/tools'
 import { z } from 'zod'
 import { itunesReviewsUrl } from '@/lib/app-store'
+import { getLabel, calcTrend, extractThemes } from '../lib/itunes-helpers'
 
 const ReviewSchema = z.object({
   id: z.string(),
@@ -104,90 +105,11 @@ function parseEntry(entry: unknown): Review | null {
   }
 }
 
-function getLabel(node: unknown): string {
-  if (typeof node === 'object' && node !== null) {
-    return String((node as Record<string, unknown>).label ?? '')
-  }
-  return ''
-}
-
 function getNestedLabel(node: unknown, key: string): string {
   if (typeof node === 'object' && node !== null) {
     return getLabel((node as Record<string, unknown>)[key])
   }
   return ''
-}
-
-// Compare average rating of the oldest half vs newest half to detect trend.
-function calcTrend(reviews: Review[]): 'improving' | 'declining' | 'stable' | 'insufficient_data' {
-  if (reviews.length < 10) return 'insufficient_data'
-  const mid = Math.floor(reviews.length / 2)
-  // reviews are newest-first from RSS
-  const recentAvg = avg(reviews.slice(0, mid).map((r) => r.rating))
-  const olderAvg = avg(reviews.slice(mid).map((r) => r.rating))
-  const delta = recentAvg - olderAvg
-  if (delta > 0.3) return 'improving'
-  if (delta < -0.3) return 'declining'
-  return 'stable'
-}
-
-function avg(nums: number[]): number {
-  return nums.length === 0 ? 0 : nums.reduce((a, b) => a + b, 0) / nums.length
-}
-
-// Keyword frequency scan to surface the most common praise/complaint topics.
-const POSITIVE_KEYWORDS: Record<string, string> = {
-  'easy to use': 'ease of use',
-  'intuitive': 'intuitive UI',
-  'great design': 'design quality',
-  'fast': 'performance',
-  'love': 'user delight',
-  'helpful': 'helpfulness',
-  'amazing': 'user delight',
-  'works great': 'reliability',
-  'offline': 'offline support',
-}
-
-const NEGATIVE_KEYWORDS: Record<string, string> = {
-  'crash': 'crashes/stability',
-  'bug': 'bugs',
-  'slow': 'performance',
-  'expensive': 'pricing',
-  'subscription': 'subscription model',
-  'ads': 'ads',
-  'battery': 'battery drain',
-  'update': 'update issues',
-  'login': 'login/auth issues',
-  'not working': 'reliability',
-}
-
-function extractThemes(reviews: Review[]): { positiveThemes: string[]; negativeThemes: string[] } {
-  const positiveCount: Record<string, number> = {}
-  const negativeCount: Record<string, number> = {}
-
-  for (const review of reviews) {
-    const text = review.text.toLowerCase()
-    const dict = review.rating >= 4 ? POSITIVE_KEYWORDS : NEGATIVE_KEYWORDS
-    const counter = review.rating >= 4 ? positiveCount : negativeCount
-
-    for (const [kw, theme] of Object.entries(dict)) {
-      if (text.includes(kw)) {
-        counter[theme] = (counter[theme] ?? 0) + 1
-      }
-    }
-  }
-
-  const topPositive = Object.entries(positiveCount)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([theme]) => theme)
-
-  const topNegative = Object.entries(negativeCount)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([theme]) => theme)
-
-  return { positiveThemes: topPositive, negativeThemes: topNegative }
 }
 
 function emptyResult() {

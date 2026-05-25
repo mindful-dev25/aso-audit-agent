@@ -104,6 +104,36 @@ function RecommendationItem({
   )
 }
 
+// ─── Recommendation section ───────────────────────────────────────────────────
+
+function RecommendationSection({
+  title,
+  subtitle,
+  items,
+}: {
+  title: string
+  subtitle: string
+  items: AuditResult['quickWins']
+}) {
+  if (items.length === 0) return null
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <CardTitle className="text-base">{title}</CardTitle>
+          <Badge variant="secondary">{items.length}</Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {items.map((r, i) => (
+          <RecommendationItem key={i} {...r} />
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── Competitor table ─────────────────────────────────────────────────────────
 
 function CompetitorTable({
@@ -163,59 +193,21 @@ export function AuditCard({ audit }: { audit: AuditResult }) {
         </CardContent>
       </Card>
 
-      {/* Quick wins */}
-      {audit.quickWins.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base">Quick Wins</CardTitle>
-              <Badge variant="secondary">{audit.quickWins.length}</Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">High impact, implementable today</p>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {audit.quickWins.map((r, i) => (
-              <RecommendationItem key={i} {...r} />
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* High-impact changes */}
-      {audit.highImpactChanges.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base">High-Impact Changes</CardTitle>
-              <Badge variant="secondary">{audit.highImpactChanges.length}</Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">Significant effort, significant return</p>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {audit.highImpactChanges.map((r, i) => (
-              <RecommendationItem key={i} {...r} />
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Strategic recommendations */}
-      {audit.strategicRecommendations.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-base">Strategic Recommendations</CardTitle>
-              <Badge variant="secondary">{audit.strategicRecommendations.length}</Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">Longer-term improvements</p>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {audit.strategicRecommendations.map((r, i) => (
-              <RecommendationItem key={i} {...r} />
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <RecommendationSection
+        title="Quick Wins"
+        subtitle="High impact, implementable today"
+        items={audit.quickWins}
+      />
+      <RecommendationSection
+        title="High-Impact Changes"
+        subtitle="Significant effort, significant return"
+        items={audit.highImpactChanges}
+      />
+      <RecommendationSection
+        title="Strategic Recommendations"
+        subtitle="Longer-term improvements"
+        items={audit.strategicRecommendations}
+      />
 
       {/* Competitor comparison */}
       {audit.competitors.length > 0 && (

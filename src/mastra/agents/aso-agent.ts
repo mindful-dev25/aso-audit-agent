@@ -1,8 +1,7 @@
 import { Agent } from '@mastra/core/agent'
 import { createTool } from '@mastra/core/tools'
-import { anthropic } from '@ai-sdk/anthropic'
-import { openai } from '@ai-sdk/openai'
 import { z } from 'zod'
+import { defaultModel } from '../lib/model'
 import { fetchAppMetadata, AppMetadataSchema } from '../tools/fetch-app-metadata'
 import { scrapeAppListing } from '../tools/scrape-listing'
 import { fetchAppReviews } from '../tools/fetch-reviews'
@@ -31,15 +30,7 @@ const triggerASOAudit = createTool({
   execute: async (inputData) => {
     try {
       const run = await asoAuditWorkflow.createRun()
-      const result = await run.start({
-        inputData: {
-          appId: inputData.appId,
-          appUrl: inputData.appUrl,
-          country: inputData.country,
-          category: inputData.category,
-          appMetadata: inputData.appMetadata,
-        },
-      })
+      const result = await run.start({ inputData })
 
       if (result.status !== 'success') {
         return { auditJson: '{}', error: `Workflow ended with status: ${result.status}` }
@@ -52,16 +43,10 @@ const triggerASOAudit = createTool({
   },
 })
 
-// ─── Agent ───────────────────────────────────────────────────────────────────
-
-const model = process.env.ANTHROPIC_API_KEY
-  ? anthropic('claude-sonnet-4-5')
-  : openai('gpt-4o-mini')
-
 export const asoAgent = new Agent({
   id: 'aso-agent',
   name: 'ASO Audit Assistant',
-  model,
+  model: defaultModel,
   tools: {
     fetchAppMetadata,
     scrapeAppListing,

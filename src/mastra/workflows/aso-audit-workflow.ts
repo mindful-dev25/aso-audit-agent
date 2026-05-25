@@ -1,11 +1,11 @@
 import { createWorkflow, createStep } from '@mastra/core/workflows'
 import { generateObject } from 'ai'
-import { anthropic } from '@ai-sdk/anthropic'
-import { openai } from '@ai-sdk/openai'
 import { z } from 'zod'
 import { AppMetadataSchema } from '../tools/fetch-app-metadata'
-import { CompetitorSchema } from '../tools/find-competitors'
-import { itunesReviewsUrl, itunesSearchUrl, itunesLookupUrl } from '@/lib/app-store'
+import { CompetitorSchema, fetchCompetitorDetail } from '../tools/find-competitors'
+import { getLabel, calcTrend, extractThemes } from '../lib/itunes-helpers'
+import { defaultModel } from '../lib/model'
+import { itunesReviewsUrl, itunesSearchUrl } from '@/lib/app-store'
 
 // ─── Shared schemas ────────────────────────────────────────────────────────
 
@@ -104,14 +104,10 @@ const analyzeAuditStep = createStep({
   inputSchema: CollectedDataSchema,
   outputSchema: AuditResultSchema,
   execute: async ({ inputData }) => {
-    const model = process.env.ANTHROPIC_API_KEY
-      ? anthropic('claude-sonnet-4-5')
-      : openai('gpt-4o-mini')
-
     const prompt = buildAuditPrompt(inputData)
 
     const { object } = await generateObject({
-      model,
+      model: defaultModel,
       schema: AuditResultSchema,
       prompt,
       temperature: 0.3,
@@ -219,33 +215,6 @@ async function findCompetitorsData(category: string, country: string, excludeApp
   }
 }
 
-async function fetchCompetitorDetail(appId: string, country: string) {
-  try {
-    const res = await fetch(itunesLookupUrl(appId, country))
-    if (!res.ok) return null
-    const data = (await res.json()) as { results?: Record<string, unknown>[] }
-    const app = data.results?.[0]
-    if (!app) return null
-    const screenshots = Array.isArray(app.screenshotUrls) ? (app.screenshotUrls as string[]) : []
-    const ipadScreenshots = Array.isArray(app.ipadScreenshotUrls) ? (app.ipadScreenshotUrls as string[]) : []
-    return {
-      appId: String(app.trackId ?? appId),
-      appName: String(app.trackName ?? ''),
-      developer: String(app.artistName ?? ''),
-      iconUrl: String(app.artworkUrl512 ?? app.artworkUrl100 ?? ''),
-      category: String(app.primaryGenreName ?? ''),
-      rating: Number(app.averageUserRating ?? 0),
-      ratingCount: Number(app.userRatingCount ?? 0),
-      price: Number(app.price ?? 0),
-      isFree: Number(app.price ?? 0) === 0,
-      screenshotCount: screenshots.length + ipadScreenshots.length,
-      description: String(app.description ?? '').slice(0, 500),
-    }
-  } catch {
-    return null
-  }
-}
-
 // ─── Prompt builder ─────────────────────────────────────────────────────────
 
 function buildAuditPrompt(data: z.infer<typeof CollectedDataSchema>): string {
@@ -326,8 +295,6 @@ ${listing.hasFirecrawl ? '' : '\nNote: Firecrawl was not configured — subtitle
 Now produce the full ASO audit JSON.`
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
 type ParsedReview = { rating: number; text: string }
 
 function parseReviewEntry(entry: unknown): ParsedReview | null {
@@ -336,50 +303,6 @@ function parseReviewEntry(entry: unknown): ParsedReview | null {
   const rating = Number(getLabel(e['im:rating']))
   if (isNaN(rating)) return null
   return { rating, text: getLabel(e['content']) }
-}
-
-function getLabel(node: unknown): string {
-  if (typeof node === 'object' && node !== null) {
-    return String((node as Record<string, unknown>).label ?? '')
-  }
-  return ''
-}
-
-function calcTrend(reviews: ParsedReview[]): 'improving' | 'declining' | 'stable' | 'insufficient_data' {
-  if (reviews.length < 10) return 'insufficient_data'
-  const mid = Math.floor(reviews.length / 2)
-  const recent = reviews.slice(0, mid).reduce((s, r) => s + r.rating, 0) / mid
-  const older = reviews.slice(mid).reduce((s, r) => s + r.rating, 0) / (reviews.length - mid)
-  if (recent - older > 0.3) return 'improving'
-  if (older - recent > 0.3) return 'declining'
-  return 'stable'
-}
-
-const POSITIVE_KW: Record<string, string> = {
-  'easy to use': 'ease of use', intuitive: 'intuitive UI', fast: 'performance',
-  love: 'user delight', amazing: 'user delight', helpful: 'helpfulness',
-  'works great': 'reliability', offline: 'offline support',
-}
-const NEGATIVE_KW: Record<string, string> = {
-  crash: 'crashes/stability', bug: 'bugs', slow: 'performance',
-  expensive: 'pricing', subscription: 'subscription model', ads: 'ads',
-  battery: 'battery drain', 'not working': 'reliability', login: 'login issues',
-}
-
-function extractThemes(reviews: ParsedReview[]) {
-  const pos: Record<string, number> = {}
-  const neg: Record<string, number> = {}
-  for (const r of reviews) {
-    const text = r.text.toLowerCase()
-    const kws = r.rating >= 4 ? POSITIVE_KW : NEGATIVE_KW
-    const counter = r.rating >= 4 ? pos : neg
-    for (const [kw, theme] of Object.entries(kws)) {
-      if (text.includes(kw)) counter[theme] = (counter[theme] ?? 0) + 1
-    }
-  }
-  const top = (c: Record<string, number>) =>
-    Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t]) => t)
-  return { positiveThemes: top(pos), negativeThemes: top(neg) }
 }
 
 function extractSubtitle(markdown: string): string {
