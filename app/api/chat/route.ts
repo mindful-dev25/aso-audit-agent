@@ -5,9 +5,9 @@ export const runtime = 'nodejs'
 export const maxDuration = 120
 
 export async function POST(req: Request) {
-  if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return new Response(
-      'No LLM API key configured. Set ANTHROPIC_API_KEY (or OPENAI_API_KEY) in your .env file.',
+      'No LLM API key configured. Set GROQ_API_KEY in your .env.local file.',
       { status: 500, headers: { 'Content-Type': 'text/plain' } },
     )
   }

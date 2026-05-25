@@ -1,6 +1,3 @@
-import { anthropic } from '@ai-sdk/anthropic'
-import { openai } from '@ai-sdk/openai'
+import { groq } from '@ai-sdk/groq'
 
-export const defaultModel = process.env.ANTHROPIC_API_KEY
-  ? anthropic('claude-sonnet-4-5')
-  : openai('gpt-4o-mini')
+export const defaultModel = groq('llama-3.3-70b-versatile')
