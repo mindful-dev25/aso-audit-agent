@@ -3,9 +3,6 @@ import { createTool } from '@mastra/core/tools'
 import { z } from 'zod'
 import { defaultModel } from '../lib/model'
 import { fetchAppMetadata, AppMetadataSchema } from '../tools/fetch-app-metadata'
-import { scrapeAppListing } from '../tools/scrape-listing'
-import { fetchAppReviews } from '../tools/fetch-reviews'
-import { findCompetitors } from '../tools/find-competitors'
 import { asoAuditWorkflow } from '../workflows/aso-audit-workflow'
 
 // ─── triggerASOAudit tool ────────────────────────────────────────────────────
@@ -49,9 +46,6 @@ export const asoAgent = new Agent({
   model: defaultModel,
   tools: {
     fetchAppMetadata,
-    scrapeAppListing,
-    fetchAppReviews,
-    findCompetitors,
     triggerASOAudit,
   },
   instructions: `You are an expert ASO (App Store Optimization) analyst. Your job is to help users audit their App Store listings.
