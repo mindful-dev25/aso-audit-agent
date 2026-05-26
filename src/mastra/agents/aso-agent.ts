@@ -2,7 +2,7 @@ import { Agent } from '@mastra/core/agent'
 import { createTool } from '@mastra/core/tools'
 import { z } from 'zod'
 import { defaultModel } from '../lib/model'
-import { fetchAppMetadata, AppMetadataSchema } from '../tools/fetch-app-metadata'
+import { fetchAppMetadata } from '../tools/fetch-app-metadata'
 import { asoAuditWorkflow } from '../workflows/aso-audit-workflow'
 
 // ─── triggerASOAudit tool ────────────────────────────────────────────────────
@@ -18,7 +18,6 @@ const triggerASOAudit = createTool({
     appUrl: z.string().describe('Full Apple App Store URL'),
     country: z.string().describe('Two-letter country code, e.g. "us"'),
     category: z.string().describe('Primary app category, e.g. "Music"'),
-    appMetadata: AppMetadataSchema.describe('Full metadata object from fetchAppMetadata'),
   }),
   outputSchema: z.object({
     auditJson: z.string().describe('Full audit result as a JSON string'),
@@ -66,7 +65,7 @@ If they say no or provide a different URL, go back to step 1 with the new URL.
 
 **Step 4 — Run the audit**
 Say: "Starting your ASO audit — I'm gathering listing data, reviews, and competitor info in parallel. This takes about 20–30 seconds."
-Then call triggerASOAudit with the appId, appUrl, country, category, and appMetadata from step 1.
+Then call triggerASOAudit with the appId, appUrl, country, and category from step 1.
 
 **Step 5 — Present results**
 When the audit completes, output the result EXACTLY as follows — do not summarise or omit anything:

@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ['@mastra/core', '@mastra/libsql'],
+  serverExternalPackages: ['@mastra/core', '@mastra/libsql', '@mendable/firecrawl-js'],
 }
 
 export default nextConfig

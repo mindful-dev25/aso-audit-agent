@@ -4,42 +4,48 @@ import { z } from 'zod'
 import { AppMetadataSchema } from '../tools/fetch-app-metadata'
 import { CompetitorSchema, fetchCompetitorDetail } from '../tools/find-competitors'
 import { getLabel, calcTrend, extractThemes } from '../lib/itunes-helpers'
-import { defaultModel } from '../lib/model'
-import { itunesReviewsUrl, itunesSearchUrl } from '@/lib/app-store'
+import { defaultModel, structuredModel } from '../lib/model'
+import { itunesReviewsUrl, itunesSearchUrl, itunesLookupUrl } from '@/lib/app-store'
 
 // ─── Shared schemas ────────────────────────────────────────────────────────
 
 const RecommendationSchema = z.object({
   title: z.string(),
   evidence: z.string(),
-  before: z.string().optional(),
-  after: z.string().optional(),
+  before: z.string().nullable(),
+  after: z.string().nullable(),
 })
 
-export const AuditResultSchema = z.object({
+const DimensionSchema = z.object({
+  name: z.string(),
+  score: z.number(),
+  weight: z.number(),
+  findings: z.string(),
+  recommendations: z.array(z.string()),
+})
+
+const CompetitorSummarySchema = z.object({
+  name: z.string(),
+  rating: z.number(),
+  ratingCount: z.number(),
+  keyDifference: z.string(),
+})
+
+// Split into two sub-schemas to avoid token truncation on large outputs.
+const AuditAnalysisSchema = z.object({
   appName: z.string(),
   overallScore: z.number(),
-  dimensions: z.array(
-    z.object({
-      name: z.string(),
-      score: z.number(),
-      weight: z.number(),
-      findings: z.string(),
-      recommendations: z.array(z.string()),
-    })
-  ),
+  dimensions: z.array(DimensionSchema),
+})
+
+const AuditRecommendationsSchema = z.object({
   quickWins: z.array(RecommendationSchema),
   highImpactChanges: z.array(RecommendationSchema),
   strategicRecommendations: z.array(RecommendationSchema),
-  competitors: z.array(
-    z.object({
-      name: z.string(),
-      rating: z.number(),
-      ratingCount: z.number(),
-      keyDifference: z.string(),
-    })
-  ),
+  competitors: z.array(CompetitorSummarySchema),
 })
+
+export const AuditResultSchema = AuditAnalysisSchema.merge(AuditRecommendationsSchema)
 
 export type AuditResult = z.infer<typeof AuditResultSchema>
 
@@ -48,7 +54,6 @@ const WorkflowInputSchema = z.object({
   appUrl: z.string(),
   country: z.string(),
   category: z.string(),
-  appMetadata: AppMetadataSchema,
 })
 
 export type WorkflowInput = z.infer<typeof WorkflowInputSchema>
@@ -81,14 +86,15 @@ const collectDataStep = createStep({
   execute: async ({ inputData }) => {
     const { appId, appUrl, country, category } = inputData
 
-    const [listing, reviews, competitors] = await Promise.all([
+    const [appMetadata, listing, reviews, competitors] = await Promise.all([
+      fetchMetadata(appId, country, appUrl),
       scrapeListingData(appUrl),
       fetchReviewsData(appId, country),
       findCompetitorsData(category, country, appId),
     ])
 
     return {
-      appMetadata: inputData.appMetadata,
+      appMetadata,
       appUrl,
       listing,
       reviews,
@@ -106,14 +112,24 @@ const analyzeAuditStep = createStep({
   execute: async ({ inputData }) => {
     const prompt = buildAuditPrompt(inputData)
 
-    const { object } = await generateObject({
-      model: defaultModel,
-      schema: AuditResultSchema,
-      prompt,
-      temperature: 0.3,
-    })
+    const [{ object: analysis }, { object: recommendations }] = await Promise.all([
+      generateObject({
+        model: structuredModel,
+        schema: AuditAnalysisSchema,
+        prompt: prompt + '\n\nOutput only: appName, overallScore, and dimensions (scores + findings).',
+        temperature: 0.3,
+        maxTokens: 4096,
+      }),
+      generateObject({
+        model: structuredModel,
+        schema: AuditRecommendationsSchema,
+        prompt: prompt + '\n\nOutput only: quickWins, highImpactChanges, strategicRecommendations, and competitors.',
+        temperature: 0.3,
+        maxTokens: 4096,
+      }),
+    ])
 
-    return object
+    return { ...analysis, ...recommendations }
   },
 })
 
@@ -129,6 +145,35 @@ export const asoAuditWorkflow = createWorkflow({
   .commit()
 
 // ─── Data collection helpers ────────────────────────────────────────────────
+
+async function fetchMetadata(appId: string, country: string, fallbackUrl: string): Promise<z.infer<typeof AppMetadataSchema>> {
+  const res = await fetch(itunesLookupUrl(appId, country))
+  if (!res.ok) throw new Error(`iTunes API returned HTTP ${res.status}`)
+  const data = (await res.json()) as { resultCount: number; results: Record<string, unknown>[] }
+  const app = data.results?.[0]
+  if (!app) throw new Error('App not found in iTunes API')
+  return {
+    appId: String(app.trackId ?? appId),
+    appName: String(app.trackName ?? ''),
+    developer: String(app.artistName ?? ''),
+    iconUrl: String(app.artworkUrl512 ?? app.artworkUrl100 ?? ''),
+    category: String(app.primaryGenreName ?? ''),
+    genres: Array.isArray(app.genres) ? (app.genres as string[]) : [],
+    country,
+    rating: Number(app.averageUserRating ?? 0),
+    ratingCount: Number(app.userRatingCount ?? 0),
+    description: String(app.description ?? ''),
+    screenshotUrls: Array.isArray(app.screenshotUrls) ? (app.screenshotUrls as string[]) : [],
+    ipadScreenshotUrls: Array.isArray(app.ipadScreenshotUrls) ? (app.ipadScreenshotUrls as string[]) : [],
+    price: Number(app.price ?? 0),
+    isFree: Number(app.price ?? 0) === 0,
+    version: String(app.version ?? ''),
+    releaseNotes: String(app.releaseNotes ?? ''),
+    appUrl: String(app.trackViewUrl ?? fallbackUrl),
+    contentRating: String(app.contentAdvisoryRating ?? ''),
+    minimumOsVersion: String(app.minimumOsVersion ?? ''),
+  }
+}
 
 async function scrapeListingData(url: string) {
   if (!process.env.FIRECRAWL_API_KEY) {
