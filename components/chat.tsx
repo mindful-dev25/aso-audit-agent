@@ -23,7 +23,7 @@ export function Chat() {
     () => new TextStreamChatTransport({ api: '/api/chat', body: { threadId } }),
     [threadId],
   )
-  const { messages, sendMessage, status } = useChat({ transport })
+  const { messages, sendMessage, status, error } = useChat({ transport })
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -63,6 +63,14 @@ export function Chat() {
           {messages.map(m => (
             <Message key={m.id} message={m} />
           ))}
+
+          {error && (
+            <div className="flex justify-start px-1">
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
+                Something went wrong. Please try again.
+              </div>
+            </div>
+          )}
 
           {status === 'submitted' && (
             <div className="flex justify-start px-1">

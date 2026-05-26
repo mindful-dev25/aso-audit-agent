@@ -30,9 +30,20 @@ export function Message({ message }: { message: UIMessage }) {
   if (!isUser) {
     const audit = parseAudit(text)
     if (audit) {
+      const isValid =
+        audit.appName &&
+        typeof audit.overallScore === 'number' &&
+        Array.isArray(audit.dimensions)
+
       return (
         <div className="w-full">
-          <AuditCard audit={audit} />
+          {isValid ? (
+            <AuditCard audit={audit} />
+          ) : (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+              Audit completed but the result could not be rendered.
+            </div>
+          )}
         </div>
       )
     }
