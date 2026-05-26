@@ -2,6 +2,7 @@
 
 import { useChat } from '@ai-sdk/react'
 import { TextStreamChatTransport } from 'ai'
+import { v4 as uuidv4 } from 'uuid'
 import { useRef, useEffect, useState, useMemo } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,7 +10,19 @@ import { Button } from '@/components/ui/button'
 import { Message } from './message'
 
 export function Chat() {
-  const transport = useMemo(() => new TextStreamChatTransport({ api: '/api/chat' }), [])
+  const threadId = useMemo(() => {
+    const key = 'aso-thread-id'
+    const stored = sessionStorage.getItem(key)
+    if (stored) return stored
+    const id = uuidv4()
+    sessionStorage.setItem(key, id)
+    return id
+  }, [])
+
+  const transport = useMemo(
+    () => new TextStreamChatTransport({ api: '/api/chat', body: { threadId } }),
+    [threadId],
+  )
   const { messages, sendMessage, status } = useChat({ transport })
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)

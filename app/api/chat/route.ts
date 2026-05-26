@@ -12,10 +12,10 @@ export async function POST(req: Request) {
     )
   }
 
-  const { messages } = (await req.json()) as { messages: unknown[] }
+  const { messages, threadId } = (await req.json()) as { messages: unknown[]; threadId?: string }
 
   const agent = mastra.getAgent('asoAgent')
-  const result = await agent.stream(messages)
+  const result = await agent.stream(messages, threadId ? { memory: { thread: threadId } } : {})
 
   // Mastra uses the Node stream/web ReadableStream — cast to satisfy ai's DOM ReadableStream type.
   return createTextStreamResponse({
