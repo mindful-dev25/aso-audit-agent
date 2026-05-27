@@ -6,8 +6,12 @@ import { asoAuditWorkflow } from './workflows/aso-audit-workflow'
 export const mastra = new Mastra({
   agents: { asoAgent },
   workflows: { asoAuditWorkflow },
-  storage: new LibSQLStore({
-    id: 'aso-audit-db',
-    url: process.env.MASTRA_DB_URL ?? 'file:./mastra.db',
-  }),
+  ...(process.env.MASTRA_DB_URL
+    ? {
+        storage: new LibSQLStore({
+          id: 'aso-audit-db',
+          url: process.env.MASTRA_DB_URL,
+        }),
+      }
+    : {}),
 })
