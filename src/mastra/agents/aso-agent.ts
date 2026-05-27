@@ -34,7 +34,23 @@ const triggerASOAudit = createTool({
 
       return { auditJson: JSON.stringify(result.result) }
     } catch (err) {
-      return { auditJson: '{}', error: String(err) }
+      // Prefer the detailed provider message from responseBody when available
+      let detail: string | null = null
+      if (err && typeof err === 'object') {
+        const e = err as Record<string, unknown>
+        if (typeof e.responseBody === 'string') {
+          try {
+            const body = JSON.parse(e.responseBody) as { error?: { message?: string } }
+            detail = body.error?.message ?? null
+          } catch { /* not JSON */ }
+        }
+        if (!detail && e.data && typeof e.data === 'object') {
+          const data = e.data as { error?: { message?: string } }
+          detail = data.error?.message ?? null
+        }
+      }
+      const fallback = err instanceof Error ? err.message : String(err)
+      return { auditJson: '{}', error: detail ?? fallback }
     }
   },
 })

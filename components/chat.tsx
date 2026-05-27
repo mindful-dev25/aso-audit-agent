@@ -4,7 +4,6 @@ import { useChat } from '@ai-sdk/react'
 import { TextStreamChatTransport } from 'ai'
 import { v4 as uuidv4 } from 'uuid'
 import { useRef, useEffect, useState, useMemo } from 'react'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Message } from './message'
@@ -25,12 +24,13 @@ export function Chat() {
   )
   const { messages, sendMessage, status, error } = useChat({ transport })
   const [input, setInput] = useState('')
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const isBusy = status === 'submitted' || status === 'streaming'
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
   }, [messages])
 
   function submit() {
@@ -49,7 +49,7 @@ export function Chat() {
 
   return (
     <div className="flex h-full flex-col">
-      <ScrollArea className="flex-1">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -88,25 +88,24 @@ export function Chat() {
             </div>
           )}
 
-          <div ref={bottomRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       <div className="border-t bg-background px-4 py-4">
         <form
           onSubmit={e => { e.preventDefault(); submit() }}
-          className="mx-auto flex max-w-3xl items-end gap-2"
+          className="mx-auto flex max-w-3xl items-center gap-2"
         >
           <Textarea
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={onKeyDown}
             placeholder="Paste an App Store URL or type a message… (Enter to send)"
-            className="min-h-[44px] max-h-36 resize-none"
+            className="min-h-[44px] max-h-36 resize-none py-[12px]"
             rows={1}
             disabled={isBusy}
           />
-          <Button type="submit" disabled={!input.trim() || isBusy} className="shrink-0">
+          <Button type="submit" disabled={!input.trim() || isBusy} className="h-[44px] shrink-0 px-5">
             Send
           </Button>
         </form>

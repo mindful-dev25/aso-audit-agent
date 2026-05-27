@@ -115,6 +115,7 @@ const analyzeAuditStep = createStep({
     const [{ object: analysis }, { object: recommendations }] = await Promise.all([
       generateObject({
         model: structuredModel,
+        mode: 'json',
         schema: AuditAnalysisSchema,
         prompt: prompt + '\n\nOutput only: appName, overallScore, and dimensions (scores + findings).',
         temperature: 0.3,
@@ -122,6 +123,7 @@ const analyzeAuditStep = createStep({
       }),
       generateObject({
         model: structuredModel,
+        mode: 'json',
         schema: AuditRecommendationsSchema,
         prompt: prompt + '\n\nOutput only: quickWins, highImpactChanges, strategicRecommendations, and competitors.',
         temperature: 0.3,

@@ -14,10 +14,12 @@ function extractText(message: UIMessage): string {
 }
 
 function parseAudit(content: string): AuditResult | null {
-  const m = content.match(/```audit-result\n([\s\S]*?)\n```/)
-  if (!m) return null
+  const fenceMatch = content.match(/```audit-result\n([\s\S]*?)\n```/)
+  const tagMatch = content.match(/<audit-result>([\s\S]*?)<\/audit-result>/)
+  const raw = (fenceMatch?.[1] ?? tagMatch?.[1] ?? '').trim()
+  if (!raw) return null
   try {
-    return JSON.parse(m[1]) as AuditResult
+    return JSON.parse(raw) as AuditResult
   } catch {
     return null
   }
