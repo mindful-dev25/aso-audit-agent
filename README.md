@@ -58,3 +58,17 @@ The agent scores each listing on 10 dimensions using a weighted framework:
 **`audit-result` code fence** — The agent wraps the JSON result in a ` ```audit-result ``` ` fence. The frontend detects this fence, parses the JSON, and renders the rich `AuditCard` component instead of raw markdown.
 
 **Thread-based memory** — Each browser session generates a UUID thread ID that is passed to `agent.stream()`. Mastra persists conversation history so context is maintained across messages within a session.
+
+## Design decisions
+
+**Groq as the LLM provider** — Groq's inference speed and generous free tier made it the practical choice for a demo that needs to feel snappy. Both the conversational agent and the structured audit calls run on the same provider, keeping the dependency surface small.
+
+**Two parallel `generateObject` calls instead of one** — Fitting scores, findings, and recommendations into a single structured response reliably hit token limits and caused silent truncation. Splitting into two concurrent calls (one for scores/findings, one for recommendations) keeps each payload well within limits and doesn't add latency since they run in parallel.
+
+**Confirm-then-run agent flow** — The agent calls `fetchAppMetadata` first and surfaces the app name before triggering the audit. This prevents running an expensive workflow on a misidentified app and gives the user a natural checkpoint to catch a wrong URL.
+
+**`audit-result` code fence for structured output** — The agent wraps the JSON result in a ` ```audit-result ``` ` fence rather than returning raw JSON inline. The frontend detects the fence and routes to the `AuditCard` renderer. This keeps the streaming text protocol simple: everything is plain text until the fence signals a switch to structured rendering — no separate API endpoints or WebSocket channels needed.
+
+**iTunes APIs as the primary data source** — The iTunes Lookup, Reviews RSS, and Search APIs are free and require no authentication. This means the app works out of the box with only a Groq key. Firecrawl is opt-in solely because the subtitle and promotional text fields are only accessible by scraping the store page — everything else iTunes provides directly.
+
+**LibSQL for conversation memory, conditional on env var** — Mastra's LibSQL adapter supports both local SQLite files and remote Turso URLs behind the same interface. Using an env var to toggle between them (or skip storage entirely for in-memory) means local development, CI, and serverless production all work with zero code changes.
