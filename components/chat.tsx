@@ -9,14 +9,15 @@ import { Button } from '@/components/ui/button'
 import { Message } from './message'
 
 export function Chat() {
-  const threadId = useMemo(() => {
+  const [threadId] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
     const key = 'aso-thread-id'
     const stored = sessionStorage.getItem(key)
     if (stored) return stored
     const id = uuidv4()
     sessionStorage.setItem(key, id)
     return id
-  }, [])
+  })
 
   const transport = useMemo(
     () => new TextStreamChatTransport({ api: '/api/chat', body: { threadId } }),
