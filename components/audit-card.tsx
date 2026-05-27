@@ -79,8 +79,8 @@ function RecommendationItem({
 }: {
   title: string
   evidence: string
-  before?: string
-  after?: string
+  before?: string | null
+  after?: string | null
 }) {
   return (
     <div className="space-y-1.5 rounded-lg border bg-muted/30 p-3">
