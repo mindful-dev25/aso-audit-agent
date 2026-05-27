@@ -6,7 +6,7 @@ AI-powered App Store Optimization audits. Paste any Apple App Store URL into the
 
 ```bash
 cp .env.example .env
-# Fill in at least ANTHROPIC_API_KEY (or OPENAI_API_KEY as a fallback)
+# Fill in GROQ_API_KEY (required)
 
 npm install
 npm run dev
@@ -20,10 +20,9 @@ Open [http://localhost:3000](http://localhost:3000) and paste an App Store URL.
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Recommended | Claude Sonnet for analysis |
-| `OPENAI_API_KEY` | Fallback | GPT-4o-mini if no Anthropic key |
+| `GROQ_API_KEY` | Required | LLM for conversation and structured audit analysis |
 | `FIRECRAWL_API_KEY` | Optional | Scrapes subtitle + promotional text from the App Store page |
-| `MASTRA_DB_URL` | Optional | LibSQL URL (defaults to `file:./mastra.db`) |
+| `MASTRA_DB_URL` | Optional | LibSQL URL for conversation persistence (defaults to local `mastra.db`) |
 
 ## Audit dimensions
 
@@ -42,16 +41,20 @@ The agent scores each listing on 10 dimensions using a weighted framework:
 | Conversion signals | 5% |
 | Competitive position | 5% |
 
-## Architecture decisions
+## Architecture
 
-**Next.js 15 + Mastra Core** — Single `npm run dev` command. Next.js App Router handles streaming with AI SDK v6's `createTextStreamResponse`. Mastra wraps the agent and workflow lifecycle.
+**Next.js 15 + Mastra Core** — Single `npm run dev` command. Next.js App Router handles streaming via AI SDK v6's `createTextStreamResponse`. Mastra wraps the agent lifecycle and conversation memory (LibSQL-backed, defaults to `mastra.db`).
 
-**iTunes APIs (no key required)** — Lookup, Reviews RSS, and Search APIs are all free and unauthenticated. This keeps the app functional with zero API keys for data collection.
+**Groq as the LLM provider** — Both the conversational agent and structured audit analysis run on Groq (`openai/gpt-oss-120b`). No Anthropic or OpenAI key is needed.
 
-**Firecrawl is optional** — The subtitle and promotional text fields are only accessible by scraping the App Store page. If `FIRECRAWL_API_KEY` is absent, the audit proceeds with iTunes API data alone (title, description, ratings, reviews, competitors). The score simply reflects what's available.
+**iTunes APIs (no key required)** — Lookup, Reviews RSS, and Search APIs are all free and unauthenticated. This keeps data collection functional with zero extra API keys.
 
-**Single workflow step for parallel collection** — Instead of Mastra's `.parallel()` (which enforces a shared input schema across all branches), the `collectDataStep` uses `Promise.all()` to run scraping, reviews, and competitor lookups in parallel inside a single step. Simpler types, same concurrency.
+**Firecrawl is optional** — The subtitle and promotional text fields are only accessible by scraping the App Store page. If `FIRECRAWL_API_KEY` is absent the audit proceeds with iTunes API data alone (title, description, ratings, reviews, competitors). The score reflects what's available.
 
-**Structured output via `generateObject`** — The `analyzeAuditStep` calls `generateObject` with the full `AuditResultSchema` Zod schema. This guarantees the LLM returns valid, typed JSON and eliminates manual parsing.
+**Two-step Mastra workflow** — `collectDataStep` uses `Promise.all()` to fetch app metadata, reviews, and competitor data in parallel. `analyzeAuditStep` runs two `generateObject` calls in parallel — one for scores/findings, one for recommendations — to stay within token limits and avoid truncation.
+
+**Two-tool agent surface** — The `asoAgent` exposes exactly two tools: `fetchAppMetadata` (confirms the app before running) and `triggerASOAudit` (runs the full workflow). The agent follows a strict confirm-then-run flow so audits are never started on the wrong app.
 
 **`audit-result` code fence** — The agent wraps the JSON result in a ` ```audit-result ``` ` fence. The frontend detects this fence, parses the JSON, and renders the rich `AuditCard` component instead of raw markdown.
+
+**Thread-based memory** — Each browser session generates a UUID thread ID that is passed to `agent.stream()`. Mastra persists conversation history so context is maintained across messages within a session.
