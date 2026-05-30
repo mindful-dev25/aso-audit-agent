@@ -1,4 +1,4 @@
-import { groq } from '@ai-sdk/groq'
+import { anthropic } from '@ai-sdk/anthropic'
 
-export const defaultModel = groq('openai/gpt-oss-120b')
-export const structuredModel = groq('openai/gpt-oss-120b')
+export const defaultModel = anthropic('claude-sonnet-4-6')
+export const structuredModel = anthropic('claude-sonnet-4-6')

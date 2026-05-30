@@ -23,8 +23,7 @@ function extractApiErrorMessage(err: unknown): string | null {
 }
 
 function formatProviderMessage(raw: string): string {
-  // Strip the upsell sentence Groq appends ("Need more tokens? Upgrade…")
-  const clean = raw.replace(/\s*Need more tokens\?.*$/i, '').trim()
+  const clean = raw.trim()
   return `**API error:** ${clean}`
 }
 
@@ -43,9 +42,9 @@ function toUserMessage(err: unknown): string {
 }
 
 export async function POST(req: Request) {
-  if (!process.env.GROQ_API_KEY) {
+  if (!process.env.ANTHROPIC_API_KEY) {
     return new Response(
-      'No LLM API key configured. Set GROQ_API_KEY in your .env.local file.',
+      'No LLM API key configured. Set ANTHROPIC_API_KEY in your .env.local file.',
       { status: 500, headers: { 'Content-Type': 'text/plain' } },
     )
   }
